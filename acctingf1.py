@@ -101,7 +101,8 @@ elif menu == "Upload Dataset":
 # 3. Load Sample Dataset (hardcoded path)
 elif menu == "Load Sample Dataset":
     st.header("📥 Load Sample Dataset")
-    file_path = "/mnt/data/Comprehensive_Banking_Database.csv"
+    file_path = r"C:\Users\matha\Downloads\Comprehensive_Banking_Database.csv"
+
     try:
         df = pd.read_csv(file_path)
         st.dataframe(df.head())
