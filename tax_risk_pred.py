@@ -1,18 +1,28 @@
+import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
 import seaborn as sns
+import numpy as np
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.metrics import classification_report, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, classification_report
+import io
+from xgboost import XGBClassifier, XGBRegressor
 
-# 1. Load the dataset
-df = pd.read_csv('tax_risk_dataset.csv')
 
-# 2. Data Cleaning
-# Drop non-informative columns
-df = df.drop(['Taxpayer_ID', 'Audit_to_Tax_Ratio'], axis=1)
+# Streamlit configuration
+st.set_page_config(page_title="Tax Risk Analysis Dashboard", layout="wide")
+
+# Load dataset
+@st.cache_data
+def load_data():
+    df = pd.read_csv('tax_risk_dataset.csv')
+    df = df.drop(['Taxpayer_ID', 'Audit_to_Tax_Ratio'], axis=1)
+    df = df.drop_duplicates()
+    return df
+
+df = load_data()
 
 # Encode categorical variables
 le_industry = LabelEncoder()
@@ -21,83 +31,178 @@ df['Industry'] = le_industry.fit_transform(df['Industry'])
 le_risk = LabelEncoder()
 df['Risk_Label'] = le_risk.fit_transform(df['Risk_Label'])
 
-# Remove duplicates if any
-df = df.drop_duplicates()
-
-# Check missing values (optional print)
-print("Missing values per column:\n", df.isnull().sum())
-
-# 3. Exploratory Data Analysis (EDA)
-print("\nSummary statistics:\n", df.describe())
-
-# Plot Risk_Label distribution
-plt.figure(figsize=(6,4))
-sns.countplot(x='Risk_Label', data=df)
-plt.title('Risk Label Distribution')
-plt.show()
-
-# Correlation heatmap
-plt.figure(figsize=(12,8))
-sns.heatmap(df.corr(), annot=True, fmt=".2f", cmap='coolwarm')
-plt.title('Feature Correlation Matrix')
-plt.show()
-
-# Boxplot of Revenue by Risk_Label
-plt.figure(figsize=(10,6))
-sns.boxplot(x='Risk_Label', y='Revenue', data=df)
-plt.title('Revenue Distribution by Risk Label')
-plt.show()
-
-# 4. Prepare features and targets
-
-# For tax filing prediction (regression)
+# Feature-target split
 X_filing = df.drop(['Tax_Liability', 'Risk_Label'], axis=1)
 y_filing = df['Tax_Liability']
 
-# For tax risk prediction (classification)
 X_risk = df.drop(['Risk_Label'], axis=1)
 y_risk = df['Risk_Label']
 
-# 5. Split into train and test sets
-X_train_f, X_test_f, y_train_f, y_test_f = train_test_split(
-    X_filing, y_filing, test_size=0.2, random_state=42)
+# Train/test split
+X_train_f, X_test_f, y_train_f, y_test_f = train_test_split(X_filing, y_filing, test_size=0.2, random_state=42)
+X_train_r, X_test_r, y_train_r, y_test_r = train_test_split(X_risk, y_risk, test_size=0.2, stratify=y_risk, random_state=42)
 
-X_train_r, X_test_r, y_train_r, y_test_r = train_test_split(
-    X_risk, y_risk, test_size=0.2, stratify=y_risk, random_state=42)
-
-# 6. Train and evaluate models
-
-# 6a. Tax Risk Classification with Random Forest
-clf = RandomForestClassifier(random_state=42)
+# Train models
+# Train models using XGBoost
+clf = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss', random_state=42)
 clf.fit(X_train_r, y_train_r)
-y_pred_r = clf.predict(X_test_r)
-print("\nClassification Report for Tax Risk Prediction:")
-print(classification_report(y_test_r, y_pred_r, target_names=le_risk.classes_))
 
-# 6b. Tax Liability Regression with Random Forest Regressor
-reg = RandomForestRegressor(random_state=42)
+reg = XGBRegressor(random_state=42)
 reg.fit(X_train_f, y_train_f)
-y_pred_f = reg.predict(X_test_f)
 
-mse = mean_squared_error(y_test_f, y_pred_f)
-rmse = np.sqrt(mse)
-print(f"RMSE: {rmse:.2f}")
+# Sidebar navigation
+st.sidebar.title("Navigation")
+option = st.sidebar.radio("Go to", ["🏁 Overview", "📊 EDA", "📈 Feature Importance", "🧪 Model Metrics", "🔍 Predict Tax Risk", "💰 Predict Tax Liability"])
 
-print(f"\nRegression Metrics for Tax Liability Prediction:\nRMSE: {rmse:.2f}\nR2")
+# ------------------------
+# 1. Overview Section
+# ------------------------
+if option == "🏁 Overview":
+    st.title("📊 Tax Risk Analysis Dashboard")
+    st.markdown("""
+    Welcome to the interactive Tax Risk Analysis Dashboard.  
+    This tool uses machine learning to analyze taxpayer data and:
+    - Predict risk categories (Low, Medium, High)
+    - Estimate tax liabilities  
+      
+    Navigate using the sidebar to explore the data and try live predictions!
+    """)
 
-# Optional: Feature importance plots
-importances_clf = clf.feature_importances_
-features_risk = X_risk.columns
+# ------------------------
+# 2. EDA Section
+# ------------------------
+elif option == "📊 EDA":
+    st.title("📊 Exploratory Data Analysis")
 
-plt.figure(figsize=(10,6))
-sns.barplot(x=importances_clf, y=features_risk)
-plt.title('Feature Importance - Tax Risk Model')
-plt.show()
+    # Add Risk_Label Name for readable plots
+    df['Risk_Label_Name'] = le_risk.inverse_transform(df['Risk_Label'])
 
-importances_reg = reg.feature_importances_
-features_filing = X_filing.columns
+    st.subheader("Risk Label Distribution with Enhanced Visualization")
+    risk_counts = df['Risk_Label_Name'].value_counts()
+    fig1, ax1 = plt.subplots(figsize=(8, 5))
+    bars = ax1.bar(risk_counts.index, risk_counts.values, color=['#66c2a5', '#fc8d62', '#8da0cb'])
+    ax1.set_title("Number of Taxpayers by Risk Category", fontsize=14)
+    ax1.set_xlabel("Risk Category")
+    ax1.set_ylabel("Count")
+    ax1.bar_label(bars, padding=3)
+    ax1.grid(axis='y', linestyle='--', alpha=0.7)
+    st.pyplot(fig1)
 
-plt.figure(figsize=(10,6))
-sns.barplot(x=importances_reg, y=features_filing)
-plt.title('Feature Importance - Tax Liability Model')
-plt.show()
+    st.subheader("Correlation Heatmap")
+    df_numeric = df.select_dtypes(include=[float, int])
+
+    fig, ax = plt.subplots(figsize=(10, 8))  # You can adjust the size
+    sns.heatmap(df_numeric.corr(), annot=True, fmt=".2f", cmap='coolwarm', linewidths=0.5, ax=ax)
+
+    st.pyplot(fig)
+
+    st.subheader("Revenue Distribution by Risk Label (Boxplot + Violin)")
+    fig3, (ax3a, ax3b) = plt.subplots(1, 2, figsize=(16, 6))
+
+    sns.boxplot(x='Risk_Label_Name', y='Revenue', data=df, ax=ax3a, palette='Set3')
+    ax3a.set_title("Boxplot of Revenue by Risk Label")
+
+    sns.violinplot(x='Risk_Label_Name', y='Revenue', data=df, ax=ax3b, palette='Set2')
+    ax3b.set_title("Violin Plot of Revenue by Risk Label")
+
+    st.pyplot(fig3)
+
+    st.subheader("Industry vs Risk Label (Stacked Bar Chart)")
+    industry_risk = df.groupby(['Industry', 'Risk_Label_Name']).size().unstack().fillna(0)
+    fig4, ax4 = plt.subplots(figsize=(12, 6))
+    industry_risk.plot(kind='bar', stacked=True, ax=ax4, colormap='Pastel1')
+    ax4.set_title("Taxpayer Risk Distribution by Industry")
+    ax4.set_xlabel("Industry Code")
+    ax4.set_ylabel("Count")
+    ax4.legend(title="Risk Label")
+    st.pyplot(fig4)
+
+
+# ------------------------
+# 3. Feature Importance
+# ------------------------
+elif option == "📈 Feature Importance":
+    st.title("📈 Feature Importances")
+
+    st.subheader("For Tax Risk Classification")
+    importances_clf = clf.feature_importances_
+    fig4, ax4 = plt.subplots()
+    sns.barplot(x=importances_clf, y=X_risk.columns, ax=ax4, palette='viridis')
+    ax4.set_title("XG BOOST - Risk Model")
+    st.pyplot(fig4)
+
+    st.subheader("For Tax Liability Regression")
+    importances_reg = reg.feature_importances_
+    fig5, ax5 = plt.subplots()
+    sns.barplot(x=importances_reg, y=X_filing.columns, ax=ax5, palette='crest')
+    ax5.set_title("XG BOOST - Liability Model")
+    st.pyplot(fig5)
+
+# ------------------------
+# 4. Model Evaluation
+# ------------------------
+elif option == "🧪 Model Metrics":
+    st.title("🧪 Model Performance")
+
+    # Classification
+    y_pred_risk = clf.predict(X_test_r)
+    report = classification_report(y_test_r, y_pred_risk, target_names=le_risk.classes_, output_dict=True)
+    report_df = pd.DataFrame(report).transpose()
+    st.subheader("Classification Report (Tax Risk)")
+    st.dataframe(report_df.style.format("{:.2f}"))
+
+    # Download option
+    csv = report_df.to_csv(index=True).encode('utf-8')
+    st.download_button("📥 Download Classification Report", csv, "classification_report.csv", "text/csv")
+
+    # Regression
+    st.subheader("Regression Metrics (Tax Liability)")
+    y_pred_filing = reg.predict(X_test_f)
+    rmse = np.sqrt(mean_squared_error(y_test_f, y_pred_filing))
+    r2 = reg.score(X_test_f, y_test_f)
+    st.metric(label="RMSE", value=f"₹{rmse:,.2f}")
+    st.metric(label="R² Score", value=f"{r2:.2%}")
+
+# ------------------------
+# 5. Predict Risk Label
+# ------------------------
+elif option == "🔍 Predict Tax Risk":
+    st.title("🔍 Predict Tax Risk")
+    st.markdown("Input taxpayer features to predict their **risk category**.")
+
+    input_data = {}
+    for col in X_risk.columns:
+        if df[col].dtype in ['float64', 'int64']:
+            input_data[col] = st.number_input(f"{col}", value=float(df[col].mean()))
+        else:
+            input_data[col] = st.selectbox(f"{col}", options=sorted(df[col].unique()))
+
+    if st.button("Predict Risk Label"):
+        try:
+            input_df = pd.DataFrame([input_data])
+            pred_risk = clf.predict(input_df)[0]
+            st.success(f"🎯 Predicted Risk Category: **{le_risk.inverse_transform([pred_risk])[0]}**")
+        except Exception as e:
+            st.error(f"Prediction failed: {e}")
+
+# ------------------------
+# 6. Predict Tax Liability
+# ------------------------
+elif option == "💰 Predict Tax Liability":
+    st.title("💰 Predict Tax Liability")
+    st.markdown("Estimate the **tax liability** based on user input.")
+
+    input_data = {}
+    for col in X_filing.columns:
+        if df[col].dtype in ['float64', 'int64']:
+            input_data[col] = st.number_input(f"{col}", value=float(df[col].mean()))
+        else:
+            input_data[col] = st.selectbox(f"{col}", options=sorted(df[col].unique()))
+
+    if st.button("Predict Tax Liability"):
+        try:
+            input_df = pd.DataFrame([input_data])
+            prediction = reg.predict(input_df)[0]
+            st.success(f"💵 Estimated Tax Liability: ₹{prediction:,.2f}")
+        except Exception as e:
+            st.error(f"Prediction failed: {e}")
