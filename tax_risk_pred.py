@@ -52,11 +52,11 @@ reg.fit(X_train_f, y_train_f)
 
 # Sidebar navigation
 st.sidebar.title("Navigation")
-option = st.sidebar.radio("Go to", ["🏁 Overview", "📊 EDA", "📈 Feature Importance", "🧪 Model Metrics", "🔍 Predict Tax Risk", "💰 Predict Tax Liability"])
+option = st.sidebar.radio("Go to", ["🏁 Overview", "📊 EDA", "📈 Feature Importance", "🔍 Predict Tax Risk"])
 
-# ------------------------
+
 # 1. Overview Section
-# ------------------------
+
 if option == "🏁 Overview":
     st.title("📊 Tax Risk Analysis Dashboard")
     st.markdown("""
@@ -68,9 +68,9 @@ if option == "🏁 Overview":
     Navigate using the sidebar to explore the data and try live predictions!
     """)
 
-# ------------------------
+
 # 2. EDA Section
-# ------------------------
+
 elif option == "📊 EDA":
     st.title("📊 Exploratory Data Analysis")
 
@@ -118,9 +118,9 @@ elif option == "📊 EDA":
     st.pyplot(fig4)
 
 
-# ------------------------
+
 # 3. Feature Importance
-# ------------------------
+
 elif option == "📈 Feature Importance":
     st.title("📈 Feature Importances")
 
@@ -138,34 +138,34 @@ elif option == "📈 Feature Importance":
     ax5.set_title("XG BOOST - Liability Model")
     st.pyplot(fig5)
 
-# ------------------------
-# 4. Model Evaluation
-# ------------------------
-elif option == "🧪 Model Metrics":
-    st.title("🧪 Model Performance")
 
-    # Classification
-    y_pred_risk = clf.predict(X_test_r)
-    report = classification_report(y_test_r, y_pred_risk, target_names=le_risk.classes_, output_dict=True)
-    report_df = pd.DataFrame(report).transpose()
-    st.subheader("Classification Report (Tax Risk)")
-    st.dataframe(report_df.style.format("{:.2f}"))
+# # 4. Model Evaluation
 
-    # Download option
-    csv = report_df.to_csv(index=True).encode('utf-8')
-    st.download_button("📥 Download Classification Report", csv, "classification_report.csv", "text/csv")
+# elif option == "🧪 Model Metrics":
+#     st.title("🧪 Model Performance")
 
-    # Regression
-    st.subheader("Regression Metrics (Tax Liability)")
-    y_pred_filing = reg.predict(X_test_f)
-    rmse = np.sqrt(mean_squared_error(y_test_f, y_pred_filing))
-    r2 = reg.score(X_test_f, y_test_f)
-    st.metric(label="RMSE", value=f"₹{rmse:,.2f}")
-    st.metric(label="R² Score", value=f"{r2:.2%}")
+#     # Classification
+#     y_pred_risk = clf.predict(X_test_r)
+#     report = classification_report(y_test_r, y_pred_risk, target_names=le_risk.classes_, output_dict=True)
+#     report_df = pd.DataFrame(report).transpose()
+#     st.subheader("Classification Report (Tax Risk)")
+#     st.dataframe(report_df.style.format("{:.2f}"))
 
-# ------------------------
+#     # Download option
+#     csv = report_df.to_csv(index=True).encode('utf-8')
+#     st.download_button("📥 Download Classification Report", csv, "classification_report.csv", "text/csv")
+
+#     # Regression
+#     st.subheader("Regression Metrics (Tax Liability)")
+#     y_pred_filing = reg.predict(X_test_f)
+#     rmse = np.sqrt(mean_squared_error(y_test_f, y_pred_filing))
+#     r2 = reg.score(X_test_f, y_test_f)
+#     st.metric(label="RMSE", value=f"₹{rmse:,.2f}")
+#     st.metric(label="R² Score", value=f"{r2:.2%}")
+
+
 # 5. Predict Risk Label
-# ------------------------
+
 elif option == "🔍 Predict Tax Risk":
     st.title("🔍 Predict Tax Risk")
     st.markdown("Input taxpayer features to predict their **risk category**.")
@@ -185,24 +185,24 @@ elif option == "🔍 Predict Tax Risk":
         except Exception as e:
             st.error(f"Prediction failed: {e}")
 
-# ------------------------
+
 # 6. Predict Tax Liability
-# ------------------------
-elif option == "💰 Predict Tax Liability":
-    st.title("💰 Predict Tax Liability")
-    st.markdown("Estimate the **tax liability** based on user input.")
 
-    input_data = {}
-    for col in X_filing.columns:
-        if df[col].dtype in ['float64', 'int64']:
-            input_data[col] = st.number_input(f"{col}", value=float(df[col].mean()))
-        else:
-            input_data[col] = st.selectbox(f"{col}", options=sorted(df[col].unique()))
+# elif option == "💰 Predict Tax Liability":
+#     st.title("💰 Predict Tax Liability")
+#     st.markdown("Estimate the **tax liability** based on user input.")
 
-    if st.button("Predict Tax Liability"):
-        try:
-            input_df = pd.DataFrame([input_data])
-            prediction = reg.predict(input_df)[0]
-            st.success(f"💵 Estimated Tax Liability: ₹{prediction:,.2f}")
-        except Exception as e:
-            st.error(f"Prediction failed: {e}")
+#     input_data = {}
+#     for col in X_filing.columns:
+#         if df[col].dtype in ['float64', 'int64']:
+#             input_data[col] = st.number_input(f"{col}", value=float(df[col].mean()))
+#         else:
+#             input_data[col] = st.selectbox(f"{col}", options=sorted(df[col].unique()))
+
+#     if st.button("Predict Tax Liability"):
+#         try:
+#             input_df = pd.DataFrame([input_data])
+#             prediction = reg.predict(input_df)[0]
+#             st.success(f"💵 Estimated Tax Liability: ₹{prediction:,.2f}")
+#         except Exception as e:
+#             st.error(f"Prediction failed: {e}")
