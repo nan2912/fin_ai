@@ -377,4 +377,3 @@ elif page == "📈 Finance ML Report Generator":
                 st.pyplot(fig2)
         else:
             st.info("Not enough data points for LSTM forecasting (need >5 years per company).")
-
