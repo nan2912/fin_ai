@@ -57,7 +57,8 @@ menu = st.sidebar.radio("Navigation", [
     "Load Sample Dataset",
     "View Ledger",
     "Trial Balance",
-    "Export Data"
+    "Export Data",
+    "Reset Database"
 ])
 
 # 1. Add Transaction
@@ -149,3 +150,17 @@ elif menu == "Export Data":
     st.dataframe(df)
     csv_data = df.to_csv(index=False).encode("utf-8")
     st.download_button("Download CSV", csv_data, "transactions.csv", "text/csv")
+
+# 7. Reset Database
+elif menu == "Reset Database":
+    st.header("⚠️ Reset Database")
+
+    st.warning("This will permanently delete all transaction data.")
+    if st.button("Reset Database"):
+        try:
+            c.execute("DELETE FROM transactions")
+            conn.commit()
+            st.success("✅ All transactions have been deleted.")
+        except Exception as e:
+            st.error(f"Failed to reset database: {e}")
+
