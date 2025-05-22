@@ -18,8 +18,15 @@ st.set_page_config(page_title="Tax Risk Analysis Dashboard", layout="wide")
 @st.cache_data
 def load_data():
     df = pd.read_csv('tax_risk_dataset.csv')
+
+    # Drop unused columns
     df = df.drop(['Taxpayer_ID', 'Audit_to_Tax_Ratio'], axis=1)
     df = df.drop_duplicates()
+
+    # Reduce 'High' labels by 50%
+    high_risk_df = df[df['Risk_Label'] == 'High']
+    df = df.drop(high_risk_df.sample(frac=0.5, random_state=42).index)
+
     return df
 
 df = load_data()
@@ -77,16 +84,41 @@ elif option == "📊 EDA":
     # Add Risk_Label Name for readable plots
     df['Risk_Label_Name'] = le_risk.inverse_transform(df['Risk_Label'])
 
-    st.subheader("Risk Label Distribution with Enhanced Visualization")
-    risk_counts = df['Risk_Label_Name'].value_counts()
-    fig1, ax1 = plt.subplots(figsize=(8, 5))
-    bars = ax1.bar(risk_counts.index, risk_counts.values, color=['#66c2a5', '#fc8d62', '#8da0cb'])
-    ax1.set_title("Number of Taxpayers by Risk Category", fontsize=14)
-    ax1.set_xlabel("Risk Category")
-    ax1.set_ylabel("Count")
-    ax1.bar_label(bars, padding=3)
-    ax1.grid(axis='y', linestyle='--', alpha=0.7)
-    st.pyplot(fig1)
+    st.subheader("Scatter Plot: Revenue vs Profit with Risk Label")
+
+    # Create numerical codes for the Risk Labels
+    risk_codes = df['Risk_Label']  # Assuming Risk_Label is already encoded
+    label_names = le_risk.classes_  # Get the human-readable labels from the encoder
+
+    fig0, ax0 = plt.subplots(figsize=(10, 6))
+
+    # Create scatter plot
+    scatter = ax0.scatter(
+        df['Revenue'],
+        df['Profit'],
+        c=risk_codes,
+        cmap='coolwarm',   # Or try 'viridis', 'plasma', etc.
+        alpha=0.7
+    )
+
+    # Create legend manually
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], marker='o', color='w', label=label,
+               markerfacecolor=scatter.cmap(scatter.norm(i)), markersize=8)
+        for i, label in enumerate(label_names)
+    ]
+    ax0.legend(handles=legend_elements, title="Risk Label")
+
+    ax0.set_xlabel("Revenue")
+    ax0.set_ylabel("Profit")
+    ax0.set_title("Revenue vs Profit Colored by Risk Label")
+    ax0.grid(True, linestyle='--', alpha=0.6)
+
+    st.pyplot(fig0)
+
+
+
 
     st.subheader("Correlation Heatmap")
     df_numeric = df.select_dtypes(include=[float, int])
