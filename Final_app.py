@@ -75,7 +75,7 @@ if page == "📘 Accounting Module":
 
     st.header("📘 Accounting Module with CSV Support")
     menu = st.radio("Select Action", [
-        "Add Transaction", "Upload Dataset", "View Ledger", "Trial Balance", "Export Data"
+        "Add Transaction", "Upload Dataset", "View Ledger", "Trial Balance", "Export Data","Reset Database"
     ])
 
     if menu == "Add Transaction":
@@ -137,6 +137,18 @@ if page == "📘 Accounting Module":
         st.dataframe(df)
         csv_data = df.to_csv(index=False).encode("utf-8")
         st.download_button("Download CSV", csv_data, "transactions.csv", "text/csv")
+    elif menu == "Reset Database":
+        st.header("⚠️ Reset Database")
+
+        st.warning("This will permanently delete all transaction data.")
+        if st.button("Reset Database"):
+            try:
+                c.execute("DELETE FROM transactions")
+                conn.commit()
+                st.success("✅ All transactions have been deleted.")
+            except Exception as e:
+                st.error(f"Failed to reset database: {e}")
+    
 
 elif page == "📊 Tax Risk Analysis":
     # --- TAX RISK ANALYSIS DASHBOARD (from tax_risk_pred.py) ---
